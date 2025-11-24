@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>24 Kasım - Müzikli Slayt</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --glass-bg: rgba(20, 20, 20, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --md-sys-color-primary: #D0BCFF;
+            --md-sys-color-on-primary: #381E72;
+            --md-sys-color-surface-variant: #49454F;
+            --text-color: #E6E1E5;
+        }
+
+        html, body {
+            width: 100%; height: 100%; height: 100dvh;
+            margin: 0; padding: 0; overflow: hidden;
+            background-color: #0f0c29;
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: linear-gradient(-45deg, #0f0c29, #302b63, #24243e);
+            background-size: 400% 400%;
+            
+            color: var(--text-color);
+            position: fixed; top: 0; left: 0;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        #click-zone-left { position: absolute; top: 0; left: 0; width: 40%; height: 100%; z-index: 50; cursor: w-resize; }
+        #click-zone-right { position: absolute; top: 0; right: 0; width: 40%; height: 100%; z-index: 50; cursor: e-resize; }
+
+        #start-screen {
+            position: absolute; inset: 0;
+            background: rgba(0,0,0,0.95);
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            z-index: 1000; transition: opacity 0.5s;
+        }
+
+        .loader-text { color: var(--md-sys-color-primary); font-size: 1.5rem; margin-bottom: 20px; font-weight: bold; }
+
+        .btn-start {
+            padding: 15px 50px; font-size: 1.2rem; font-weight: 600;
+            color: #000; background: var(--md-sys-color-primary);
+            border: none; border-radius: 100px;
+            cursor: pointer; transition: transform 0.2s;
+            box-shadow: 0 0 20px rgba(208, 188, 255, 0.4);
+            display: none;
+        }
+        .btn-start:hover { transform: scale(1.05); }
+
+        #player-container {
+            position: absolute; inset: 0;
+            display: flex; justify-content: center; align-items: center;
+            transition: transform 0.8s cubic-bezier(0.2, 0, 0, 1), opacity 0.5s;
+            z-index: 10; pointer-events: none;
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(40px);
+            border: 1px solid var(--glass-border);
+            border-radius: 28px;
+            padding: 40px; width: 380px; max-width: 90%; text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            pointer-events: auto;
+        }
+
+        .vinyl-wrapper { width: 220px; height: 220px; margin: 0 auto 20px; position: relative; }
+        
+        .vinyl-record {
+            width: 100%; height: 100%; border-radius: 50%;
+            background: radial-gradient(#111 50%, #222 100%);
+            border: 2px solid #333; position: relative;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+            display: flex; justify-content: center; align-items: center;
+            animation: spin 6s linear infinite; animation-play-state: paused;
+        }
+        .vinyl-record::before {
+            content: ''; position: absolute; width: 90%; height: 90%; border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 0 0 10px rgba(255,255,255,0.02), 0 0 0 20px rgba(255,255,255,0.02);
+        }
+        .vinyl-center {
+            width: 35%; height: 35%; background: var(--md-sys-color-primary);
+            border-radius: 50%; z-index: 2;
+            background-image: url('/music-note_15746794.png');
+            background-size: 60%; background-position: center; background-repeat: no-repeat;
+        }
+
+        .song-info h2 { font-size: 1.5rem; font-weight: 700; color: var(--text-color); margin-bottom: 5px; }
+        .song-info p { font-size: 1rem; color: #aaa; margin-bottom: 20px; }
+
+        /* --- PLAY/PAUSE BUTONU STİLİ --- */
+        .controls {
+            display: flex; justify-content: center; align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .btn-play-pause {
+            width: 64px; height: 64px;
+            border-radius: 50%;
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            border: none;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 24px;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .btn-play-pause:hover { transform: scale(1.1); filter: brightness(1.1); }
+        .btn-play-pause:active { transform: scale(0.95); }
+
+        .md3-progress-container {
+            width: 100%; height: 4px; background-color: var(--md-sys-color-surface-variant);
+            border-radius: 10px; overflow: hidden; margin-top: 10px;
+        }
+        .md3-progress-bar { height: 100%; width: 0%; background-color: var(--md-sys-color-primary); transition: width 0.2s linear; }
+        .time-display { display: flex; justify-content: space-between; font-size: 0.8rem; color: #bbb; margin-top: 8px; font-weight: 500; }
+
+        #teacher-container {
+            position: absolute; inset: 0; opacity: 0; pointer-events: none;
+            transition: opacity 0.8s ease; overflow: hidden; z-index: 5; background: #000;
+        }
+
+        .bg-blur {
+            position: absolute; inset: 0; width: 100%; height: 100%;
+            object-fit: cover; filter: blur(30px) brightness(0.6);
+            transform: scale(1.1); transition: opacity 0.3s;
+        }
+
+        .main-img {
+            position: absolute; inset: 0; width: 100%; height: 100%;
+            object-fit: contain; z-index: 2;
+            drop-shadow: 0 0 30px rgba(0,0,0,0.8);
+            transition: opacity 0.3s;
+        }
+
+        .overlay-gradient {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 50%;
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+            display: flex; flex-direction: column; justify-content: flex-end; padding: 40px;
+            z-index: 3;
+        }
+
+        .teacher-info { transform: translateY(30px); opacity: 0; transition: all 0.8s ease 0.2s; text-align: center; }
+        .teacher-info p { font-size: 1.2rem; color: var(--md-sys-color-primary); font-weight: 500; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 5px; }
+        .teacher-info h1 { font-size: 3rem; font-weight: 700; line-height: 1.1; color: #fff; }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .hide-player { transform: scale(0.9) translateY(-20px); opacity: 0 !important; }
+        .show-teacher { opacity: 1 !important; }
+        .show-teacher .teacher-info { transform: translateY(0); opacity: 1; }
+        .playing .vinyl-record { animation-play-state: running; }
+
+    </style>
+</head>
+<body>
+
+    <div id="click-zone-left" onclick="geriGit()"></div>
+    <div id="click-zone-right" onclick="ileriGit()"></div>
+
+    <div id="start-screen">
+        <div id="loading-text" class="loader-text">Yükleniyor %0</div>
+        <h1 id="title-text" style="color:white; margin-bottom:20px; text-align:center; display:none;">24 Kasım<br>Tahmin Yarışması</h1>
+        <button id="start-btn" class="btn-start" onclick="baslat(event)">BAŞLAT</button>
+    </div>
+
+    <div id="player-container">
+        <div class="glass-card">
+            <div class="vinyl-wrapper">
+                <div class="vinyl-record" id="vinyl">
+                    <div class="vinyl-center"></div>
+                </div>
+            </div>
+            <div class="song-info">
+                <h2 id="song-name">Şarkı Adı</h2>
+                <p id="artist-name">Sanatçı</p>
+            </div>
+            <!-- progress bar -->
+            <div class="md3-progress-container">
+                <div id="progress-bar" class="md3-progress-bar"></div>
+            </div>
+            <div class="time-display">
+                <span id="current-time">0:00</span>
+                <span id="total-duration">0:00</span>
+            </div>
+            <!-- PLAY/PAUSE BUTONU -->
+            <div class="controls">
+                <button id="play-pause-btn" class="btn-play-pause" onclick="togglePlay(event)">
+                    <img src = 'pause_6415668.png' width='16px'>
+                </button>
+            </div>
+
+            
+        </div>
+    </div>
+
+    <div id="teacher-container">
+        <img id="bg-blur-img" class="bg-blur" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="">
+        <img id="main-img" class="main-img" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="">
+        
+        <div class="overlay-gradient">
+            <div class="teacher-info">
+                <p>Bu şarkı sizin için</p>
+                <h1 id="teacher-name">İSİM SOYAD</h1>
+            </div>
+        </div>
+    </div>
+
+    <audio id="audio-player"></audio>
+
+    <script>
+        // =======================================================
+        // LİSTE BÖLÜMÜ
+        // =======================================================
+        const liste = [
+           {
+                isim: "Bilgehan Bülbül",
+                foto: "fotograflar/bilgehan.jpg",
+                sarki: "muzikler/bilgehan.mp3",
+                sarkiAdi: "Beyaz Giyme Toz Olur",
+                sanatci: "Ender Balkır"
+            },
+            {
+                isim: "Alper Üstün",
+                foto: "fotograflar/alper.jpg",
+                sarki: "muzikler/alper.mp3",
+                sarkiAdi: "Ara Beni",
+                sanatci: "Oya - Bora"
+            },
+            {
+                isim: "Mevlüt Bulutcu",
+                foto: "fotograflar/mevlut.jpg",
+                sarki: "muzikler/mevlut.mp3",
+                sarkiAdi: "Uzun İnce Bir Yoldayım",
+                sanatci: "Tarkan"
+            },
+            {
+                isim: "Hakan Coşkun",
+                foto: "fotograflar/hakan.jpg",
+                sarki: "muzikler/hakan.mp3",
+                sarkiAdi: "Tut Yüreğimden Usta",
+                sanatci: "Tuncel Kurtiz"
+            },
+            {
+                isim: "Nafiz Gürhan",
+                foto: "fotograflar/nafiz.jpg",
+                sarki: "muzikler/nafiz.mp3",
+                sarkiAdi: "Koçari",
+                sanatci: "Kazım Koyuncu"
+            },
+            {
+                isim: "Emine Gider",
+                foto: "fotograflar/emine.jpg",
+                sarki: "muzikler/emine.mp3",
+                sarkiAdi: "Herşey Seni Hatırlatıyor",
+                sanatci: "Muazzez Abacı"
+            },
+            {
+                isim: "Nuray Paksoy",
+                foto: "fotograflar/nuray.jpg",
+                sarki: "muzikler/nuray.mp3",
+                sarkiAdi: "Limon Çiçeğim",
+                sanatci: "Oğuz Yılmaz"
+            },
+            {
+                isim: "Safa Bolat",
+                foto: "fotograflar/safa.jpg",
+                sarki: "muzikler/safa.mp3",
+                sarkiAdi: "Allah Allah Bu Nasıl Sevmek",
+                sanatci: "İbrahim Tatlıses"
+            },
+            {
+                isim: "Gökçe Karakaya",
+                foto: "fotograflar/gokce.jpg",
+                sarki: "muzikler/gokce.mp3",
+                sarkiAdi: "Sarışınım",
+                sanatci: "Sezen Aksu"
+            },
+            {
+                isim: "Ömer Nacak",
+                foto: "fotograflar/omer.jpg",
+                sarki: "muzikler/omer.mp3",
+                sarkiAdi: "Eğri Eğri Doğru Doğru",
+                sanatci: "Barış Manço"
+            },
+            {
+                isim: "Ahmet Şimşek",
+                foto: "fotograflar/ahmetsimsek.jpg",
+                sarki: "muzikler/ahmetsimsek.mp3",
+                sarkiAdi: "Katibim",
+                sanatci: "Ezgi Köker"
+            },
+            {
+                isim: "Esra Songurtekin",
+                foto: "fotograflar/esra.jpg",
+                sarki: "muzikler/esra.mp3",
+                sarkiAdi: "Bence Talih",
+                sanatci: "Sibel Can"
+            },
+            {
+                isim: "Berna Çakır Işık",
+                foto: "fotograflar/berna.jpg",
+                sarki: "muzikler/berna.mp3",
+                sarkiAdi: "Arım Balım Peteğim",
+                sanatci: "Zeki Müren"
+            },
+            {
+                isim: "Murat Akkuş",
+                foto: "fotograflar/murat.jpg",
+                sarki: "muzikler/murat.mp3",
+                sarkiAdi: "Dünya Dönüyor",
+                sanatci: "Nilüfer"
+            },
+            {
+                isim: "Polat Aydoğdu",
+                foto: "fotograflar/polat.jpg",
+                sarki: "muzikler/polat.mp3",
+                sarkiAdi: "Para Parra Parra",
+                sanatci: "Rüçhan Çamay"
+            },
+            {
+                isim: "Yusuf Arpacı",
+                foto: "fotograflar/yusuf.jpg",
+                sarki: "muzikler/yusuf.mp3",
+                sarkiAdi: "Arpa Buğday Daneler",
+                sanatci: "Sevcan Orhan"
+            },
+            {
+                isim: "Tezcan Demirci",
+                foto: "fotograflar/tezcan.jpg",
+                sarki: "muzikler/tezcan.mp3",
+                sarkiAdi: "BABA",
+                sanatci: "Lvbel C5"
+            },
+            {
+                isim: "Aykut Çelikel",
+                foto: "fotograflar/aykut.jpg",
+                sarki: "muzikler/aykut.mp3",
+                sarkiAdi: "Sekiz ve Dokuz",
+                sanatci: "Ebru Yaşar"
+            },
+            {
+                isim: "Mesut Kutlu",
+                foto: "fotograflar/mesut.jpg",
+                sarki: "muzikler/mesut.mp3",
+                sarkiAdi: "Yar İmiş Meğer",
+                sanatci: "Neşet Ertaş"
+            },
+            {
+                isim: "Salim Başdemir",
+                foto: "fotograflar/salim.jpg",
+                sarki: "muzikler/salim.mp3",
+                sarkiAdi: "Şekerim",
+                sanatci: "Gökben"
+            },
+            {
+                isim: "İsmet Eren",
+                foto: "fotograflar/ismet.jpg",
+                sarki: "muzikler/ismet.mp3",
+                sarkiAdi: "Bahçe Duvarından Aştım",
+                sanatci: "SesVerSus A Capella"
+            },
+            {
+                isim: "Saniye Eser",
+                foto: "fotograflar/saniye.jpg",
+                sarki: "muzikler/saniye.mp3",
+                sarkiAdi: "Fikrimin İnce Gülü",
+                sanatci: "Eylem Aktaş"
+            },
+            {
+                isim: "Mustafa Taşkıran",
+                foto: "fotograflar/mustafa.jpg",
+                sarki: "muzikler/mustafa.mp3",
+                sarkiAdi: "Aslan Mustafam",
+                sanatci: "Bedia Akartürk"
+            },
+            {
+                isim: "Gülten Erkoç",
+                foto: "fotograflar/gulten.jpg",
+                sarki: "muzikler/gulten.mp3",
+                sarkiAdi: "Ceylan",
+                sanatci: "Ayna"
+            },
+            {
+                isim: "Ayşenur Dirican Fidancı",
+                foto: "fotograflar/aysenur.jpg",
+                sarki: "muzikler/aysenur.mp3",
+                sarkiAdi: "Sevdalılar Beni Anlar",
+                sanatci: "Ferdi Tayfur"
+            },
+            {
+                isim: "Seçil Gökçe",
+                foto: "fotograflar/secil.jpg",
+                sarki: "muzikler/secil.mp3",
+                sarkiAdi: "Whenever",
+                sanatci: "Shakira"
+            },
+            {
+                isim: "Meltem Güner",
+                foto: "fotograflar/meltem.jpg",
+                sarki: "muzikler/meltem.mp3",
+                sarkiAdi: "Yarınlar Bizim",
+                sanatci: "Ali Rıza Binboğa"
+            },
+            {
+                isim: "Musa Sönmez",
+                foto: "fotograflar/musa.jpg",
+                sarki: "muzikler/musa.mp3",
+                sarkiAdi: "Konyalım",
+                sanatci: "Nadide Sultan"
+            },
+            {
+                isim: "Ahmet Güray",
+                foto: "fotograflar/ahmetguray.jpg",
+                sarki: "muzikler/ahmetguray.mp3",
+                sarkiAdi: "Ordunun Dereleri",
+                sanatci: "Zara"
+            },
+            {
+                isim: "Nihal Süllü",
+                foto: "fotograflar/nihal.jpg",
+                sarki: "muzikler/nihal.mp3",
+                sarkiAdi: "Erik Dalı",
+                sanatci: "Ömer Faruk Bostan"
+            },
+            {
+                isim: "Hacer Karataş",
+                foto: "fotograflar/hacer.jpg",
+                sarki: "muzikler/hacer.mp3",
+                sarkiAdi: "Kardan Aydınlık",
+                sanatci: "Teymullah"
+            },
+            {
+                isim: "İrfan Aktaş",
+                foto: "fotograflar/irfan.jpg",
+                sarki: "muzikler/irfan.mp3",
+                sarkiAdi: "Evli",
+                sanatci: "Demet Akalın"
+            },
+            {
+                isim: "Avni Albayrak",
+                foto: "fotograflar/avni.jpg",
+                sarki: "muzikler/avni.mp3",
+                sarkiAdi: "Sigaramın Dumanına Sarsam",
+                sanatci: "Erol Evgin"
+            },
+            {
+                isim: "İsmail Aydın",
+                foto: "fotograflar/ismail.jpg",
+                sarki: "muzikler/ismail.mp3",
+                sarkiAdi: "Bana Bir Masal Anlat Baba",
+                sanatci: "Yeni Türkü"
+            }
+        ];
+
+        let index = 0;
+        let state = "start";
+        const audio = document.getElementById('audio-player');
+        const playPauseBtn = document.getElementById('play-pause-btn');
+        
+        const startScreen = document.getElementById('start-screen');
+        const loadingText = document.getElementById('loading-text');
+        const titleText = document.getElementById('title-text');
+        const startBtn = document.getElementById('start-btn');
+        
+        const playerCont = document.getElementById('player-container');
+        const teacherCont = document.getElementById('teacher-container');
+        const progressBar = document.getElementById('progress-bar');
+        
+        const txtSong = document.getElementById('song-name');
+        const txtArtist = document.getElementById('artist-name');
+        const txtTeacher = document.getElementById('teacher-name');
+        
+        const imgMain = document.getElementById('main-img');
+        const imgBlur = document.getElementById('bg-blur-img');
+        
+        const txtCurrent = document.getElementById('current-time');
+        const txtTotal = document.getElementById('total-duration');
+
+        // === PRELOADER ===
+        window.onload = function() { preloadAssets(); };
+
+        function preloadAssets() {
+            let loadedCount = 0;
+            const totalAssets = liste.length * 2;
+            const updateProgress = () => {
+                loadedCount++;
+                if(loadedCount > totalAssets) loadedCount = totalAssets;
+                const percent = Math.floor((loadedCount / totalAssets) * 100);
+                loadingText.innerText = `Yükleniyor %${percent}`;
+                if (loadedCount >= totalAssets * 0.9) showStartButton();
+            };
+
+            liste.forEach(item => {
+                const img = new Image();
+                let imgFinished = false;
+                const onImgComplete = () => { if (!imgFinished) { imgFinished = true; updateProgress(); } };
+                img.onload = onImgComplete; img.onerror = onImgComplete; img.src = item.foto;
+
+                const audioObj = new Audio();
+                let audioFinished = false;
+                const onAudioComplete = () => { if (!audioFinished) { audioFinished = true; updateProgress(); } };
+                audioObj.preload = 'metadata';
+                audioObj.onloadedmetadata = onAudioComplete; audioObj.onerror = onAudioComplete; audioObj.src = item.sarki;
+                setTimeout(() => { onAudioComplete(); }, 500);
+            });
+        }
+
+        function showStartButton() {
+            loadingText.style.display = 'none';
+            titleText.style.display = 'block';
+            startBtn.style.display = 'block';
+        }
+
+        // === BAŞLAT ===
+        function baslat(e) {
+            e.stopPropagation();
+            if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+            else if (document.documentElement.webkitRequestFullscreen) document.documentElement.webkitRequestFullscreen();
+            startScreen.style.opacity = 0;
+            setTimeout(() => { startScreen.style.display = 'none'; }, 500);
+            yukleMuzik();
+        }
+
+        // === PLAY / PAUSE FONSİYONU ===
+        function togglePlay(e) {
+            e.stopPropagation(); // Butona tıklayınca slayt değişmesin
+            if (audio.paused) {
+                audio.play();
+                updatePlayButton(true);
+            } else {
+                audio.pause();
+                updatePlayButton(false);
+            }
+        }
+
+        function updatePlayButton(isPlaying) {
+            if (isPlaying) {
+                playPauseBtn.innerHTML = "<img src = 'pause_6415668.png' width='16px'>"; // Pause ikonu
+                playerCont.classList.add('playing');
+            } else {
+                playPauseBtn.innerHTML = "<img src = 'play-button_6057402.png' width='16px'>"; // Play ikonu
+                playerCont.classList.remove('playing');
+            }
+        }
+
+        // === NAVİGASYON ===
+        function ileriGit() {
+            if (state === "start") return;
+            if (state === "player") gosterOgretmen();
+            else if (state === "teacher") {
+                if (index < liste.length - 1) {
+                    index++;
+                    yukleMuzik();
+                } else {
+                    oyunBitti();
+                }
+            }
+        }
+
+        function geriGit() {
+            if (state === "start") return;
+            if (state === "teacher") yukleMuzik();
+            else if (state === "player") {
+                if (index > 0) {
+                    index--;
+                    gosterOgretmen(); 
+                }
+            }
+        }
+
+        // === LOGIC ===
+        function yukleMuzik() {
+            state = "player";
+            const veri = liste[index];
+
+            txtSong.innerText = veri.sarkiAdi;
+            txtArtist.innerText = veri.sanatci;
+            progressBar.style.width = "0%";
+            txtCurrent.innerText = "0:00";
+            txtTotal.innerText = "0:00";
+            
+            teacherCont.classList.remove('show-teacher');
+            playerCont.classList.remove('hide-player');
+
+            audio.src = veri.sarki;
+            audio.currentTime = 0;
+            
+            // Otomatik oynatmaya çalış, butonunu güncelle
+            audio.play().then(() => {
+                updatePlayButton(true);
+            }).catch(e => {
+                console.log("Oynatma hatası:", e);
+                updatePlayButton(false); // Başlayamazsa play ikonunda kalsın
+            });
+        }
+
+        function gosterOgretmen() {
+            audio.pause();
+            updatePlayButton(false);
+            state = "teacher";
+            
+            const veri = liste[index];
+            txtTeacher.innerText = veri.isim;
+
+            imgMain.src = "";
+            imgBlur.src = "";
+            const yeniSrc = veri.foto;
+            const onImageReady = () => {
+                playerCont.classList.add('hide-player');
+                teacherCont.classList.add('show-teacher');
+            };
+
+            imgMain.onload = onImageReady;
+            imgMain.src = yeniSrc;
+            imgBlur.src = yeniSrc;
+            if(imgMain.complete) onImageReady();
+        }
+
+        function formatTime(seconds) {
+            const min = Math.floor(seconds / 60);
+            const sec = Math.floor(seconds % 60);
+            return `${min}:${sec < 10 ? '0' + sec : sec}`;
+        }
+
+        audio.addEventListener('timeupdate', () => {
+            if(audio.duration) {
+                const percent = (audio.currentTime / audio.duration) * 100;
+                progressBar.style.width = percent + "%";
+                txtCurrent.innerText = formatTime(audio.currentTime);
+                txtTotal.innerText = formatTime(audio.duration);
+            }
+        });
+        
+        audio.addEventListener('loadedmetadata', () => {
+            txtTotal.innerText = formatTime(audio.duration);
+        });
+
+        // Şarkı kendiliğinden biterse butonu güncelle
+        audio.addEventListener('ended', () => {
+            updatePlayButton(false);
+        });
+
+        function oyunBitti() {
+            audio.pause();
+            if (document.exitFullscreen) document.exitFullscreen();
+            document.body.innerHTML = `
+                <div style="display:flex; justify-content:center; align-items:center; height:100%; flex-direction:column; text-align:center; color:white; background:#000; position:relative;">
+                    <h1 style="font-size:3rem;">Teşekkürler 💐</h1>
+                    <button onclick="location.reload()" style="margin-top:20px; padding:10px 30px; border-radius:50px; border:none; cursor:pointer;">Başa Dön</button>
+                    <div style="position:absolute; bottom:10px; left:10px; font-size:10px; color:rgba(255,255,255,0.5); font-family:sans-serif;">made with ♡ by Ahmet Selim</div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
